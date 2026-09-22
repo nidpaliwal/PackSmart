@@ -39,3 +39,30 @@ export async function getRecommendation(data) {
   }
   return res.json();
 }
+
+export async function getWhatIf(data) {
+  const res = await fetch(`${API_BASE}/whatif`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'What-if re-ranking failed');
+  }
+  return res.json();
+}
+
+export async function adminFetch(path) {
+  const res = await fetch(`${API_BASE}${path}`);
+  if (!res.ok) throw new Error('Fetch failed');
+  return res.json();
+}
+
+export async function adminDelete(path, token) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: 'DELETE',
+    headers: { 'X-Admin-Token': token },
+  });
+  if (!res.ok) throw new Error('Delete failed');
+}

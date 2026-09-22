@@ -1,5 +1,13 @@
 import { useTranslation } from '../App';
 
+export const DEFAULT_WEIGHTS = {
+  barrier: 0.35,
+  shelf_life: 0.25,
+  cost: 0.15,
+  sustainability: 0.15,
+  practicality: 0.10,
+};
+
 export default function ComparisonTable({ recommendations }) {
   const t = useTranslation();
 

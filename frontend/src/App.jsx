@@ -2,7 +2,7 @@ import { useState, createContext, useContext } from 'react';
 import StepWizard from './components/StepWizard';
 import ResultsView from './components/ResultsView';
 import AdminPanel from './components/AdminPanel';
-import { getRecommendation } from './api';
+import { getRecommendation, getWhatIf } from './api';
 import translations from './translations';
 
 export const LanguageContext = createContext();
@@ -26,6 +26,19 @@ export default function App() {
     setError(null);
     try {
       const data = await getRecommendation(inputs);
+      setResults(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleWhatIf = async (whatIfData) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getWhatIf(whatIfData);
       setResults(data);
     } catch (err) {
       setError(err.message);
@@ -101,7 +114,7 @@ export default function App() {
               )}
 
               {!loading && results && (
-                <ResultsView data={results} onReset={handleReset} />
+                <ResultsView data={results} onReset={handleReset} onWhatIf={handleWhatIf} />
               )}
             </>
           )}

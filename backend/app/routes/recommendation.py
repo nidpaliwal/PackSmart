@@ -1,7 +1,7 @@
 """
 Recommendation endpoint — orchestrates filter -> score -> predict -> explain.
 """
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 import uuid
 from app.database import get_db
@@ -10,6 +10,7 @@ from app.models.packaging_material import PackagingMaterial
 from app.schemas.recommendation import (
     RecommendationRequest, RecommendationResponse,
     RecommendationResult, ShelfLifeEstimate,
+    WhatIfRequest,
 )
 from app.services.filter import filter_materials, get_filter_reasons
 from app.services.scorer import score_material, DEFAULT_WEIGHTS
@@ -20,15 +21,17 @@ from app.services.explanation import explain_recommendation, get_top_reasons
 
 router = APIRouter(prefix="/api", tags=["recommendation"])
 
+_sessions: dict = {}
 
-@router.post("/recommend", response_model=RecommendationResponse)
-def recommend(req: RecommendationRequest, db: Session = Depends(get_db)):
+
+def _run_recommendation(req, db):
     commodity = db.query(Commodity).filter(Commodity.id == req.commodity_id).first()
     if not commodity:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Commodity not found")
 
     all_materials = db.query(PackagingMaterial).all()
+    if not all_materials:
+        return commodity, [], [], []
 
     weights = req.weights or DEFAULT_WEIGHTS
     transport_temp_max = req.storage_temp_c + 10 if req.transport_mode == "road" else req.storage_temp_c + 5
@@ -99,9 +102,40 @@ def recommend(req: RecommendationRequest, db: Session = Depends(get_db)):
             target_sl_days=req.shelf_life_target_days,
         )
 
-    compliance = check_compliance(commodity, passed[0] if passed else all_materials[0], db)
+    return commodity, passed, results, top3
+
+
+@router.post("/recommend", response_model=RecommendationResponse)
+def recommend(req: RecommendationRequest, db: Session = Depends(get_db)):
+    commodity, passed, results, top3 = _run_recommendation(req, db)
+
+    if not results:
+        session_id = str(uuid.uuid4())[:8]
+        return RecommendationResponse(
+            session_id=session_id,
+            commodity_name=commodity.name,
+            recommendations=[],
+            compliance_notes=[{
+                "message": "No packaging material in our database meets these constraints. Try relaxing temperature, humidity, or budget requirements.",
+                "regulation_citation": "System",
+                "severity": "info",
+            }],
+            disclaimer=DISCLAIMER,
+        )
+
+    if not top3:
+        top3 = results[:3]
+        for i, r in enumerate(top3, 1):
+            r["rank"] = i
+
+    compliance = check_compliance(commodity, passed[0], db)
 
     session_id = str(uuid.uuid4())[:8]
+    _sessions[session_id] = {
+        "commodity_id": commodity.id,
+        "req": req.model_dump(),
+        "passed_ids": [m.id for m in passed],
+    }
 
     top3_results = []
     for r in top3:
@@ -124,6 +158,73 @@ def recommend(req: RecommendationRequest, db: Session = Depends(get_db)):
 
     return RecommendationResponse(
         session_id=session_id,
+        commodity_name=commodity.name,
+        recommendations=top3_results,
+        compliance_notes=compliance["warnings"] + compliance["info_notes"],
+        disclaimer=DISCLAIMER,
+    )
+
+
+@router.post("/whatif", response_model=RecommendationResponse)
+def whatif(req: WhatIfRequest, db: Session = Depends(get_db)):
+    session = _sessions.get(req.session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found. Run a recommendation first.")
+
+    merged = dict(session["req"])
+    if req.weights:
+        merged["weights"] = req.weights
+    if req.shelf_life_target_days:
+        merged["shelf_life_target_days"] = req.shelf_life_target_days
+    if req.storage_temp_c is not None:
+        merged["storage_temp_c"] = req.storage_temp_c
+    if req.budget_per_unit is not None:
+        merged["budget_per_unit"] = req.budget_per_unit
+
+    new_req = RecommendationRequest(**merged)
+    commodity, passed, results, top3 = _run_recommendation(new_req, db)
+
+    if not results:
+        return RecommendationResponse(
+            session_id=req.session_id,
+            commodity_name=commodity.name,
+            recommendations=[],
+            compliance_notes=[{
+                "message": "No packaging material meets the updated constraints.",
+                "regulation_citation": "System",
+                "severity": "info",
+            }],
+            disclaimer=DISCLAIMER,
+        )
+
+    if not top3:
+        top3 = results[:3]
+        for i, r in enumerate(top3, 1):
+            r["rank"] = i
+
+    compliance = check_compliance(commodity, passed[0], db)
+
+    top3_results = []
+    for r in top3:
+        top3_results.append(RecommendationResult(
+            rank=r["rank"],
+            material_id=r["material_id"],
+            material_name=r["material_name"],
+            score=r["score"],
+            barrier_score=r["barrier_score"],
+            shelf_life_score=r["shelf_life_score"],
+            cost_score=r["cost_score"],
+            sustainability_score=r["sustainability_score"],
+            practicality_score=r["practicality_score"],
+            shelf_life=ShelfLifeEstimate(**r["shelf_life"]),
+            cost_per_unit=r["cost_per_unit"],
+            warnings=r["warnings"],
+            explanation=r["explanation"],
+            is_multi_layer=r["is_multi_layer"],
+        ))
+
+    return RecommendationResponse(
+        session_id=req.session_id,
         commodity_name=commodity.name,
         recommendations=top3_results,
         compliance_notes=compliance["warnings"] + compliance["info_notes"],
