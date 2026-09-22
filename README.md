@@ -93,15 +93,17 @@ Copy `.env.example` to `backend/.env`:
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `DATABASE_URL` | SQLite database path | `sqlite:///./packsmart.db` |
-| `ADMIN_TOKEN` | Auth token for admin API routes | `packsmart-admin-change-me` |
+| `ADMIN_TOKEN` | Auth token for admin API routes | **Change before deploying!** |
 | `CORS_ORIGINS` | Comma-separated allowed origins | `http://localhost:5173,http://localhost:3000` |
+
+> **Security:** The default `ADMIN_TOKEN` in `.env.example` is for local development only. Set a strong secret in your deployed `.env` — never commit real tokens to a public repo.
 
 ## Admin API
 
 POST/PUT/DELETE routes on `/api/commodities/`, `/api/materials/`, `/api/rules/` require the `X-Admin-Token` header:
 
 ```bash
-curl -H "X-Admin-Token: packsmart-admin-change-me" -X POST http://localhost:8000/api/commodities/ -H "Content-Type: application/json" -d '{...}'
+curl -H "X-Admin-Token: YOUR_SECRET_TOKEN" -X POST http://localhost:8000/api/commodities/ -H "Content-Type: application/json" -d '{...}'
 ```
 
 ## Knowledge Base
@@ -121,9 +123,32 @@ python -m pytest tests/test_acceptance.py -v
 
 ## SRS Compliance
 
-See `SRS.md` for the full Software Requirements Specification.
+See [SRS.md](SRS.md) for the full Software Requirements Specification.
 
-**Note:** The chat assistant (FR-7.2) from the SRS is implemented as a template-based explanation engine rather than an LLM-powered chat, since no external LLM API dependency was desired for the prototype.
+**Implementation notes:**
+- FR-7.2 (Chat Assistant): Implemented as a template-based explanation engine rather than an LLM-powered chat, since no external LLM API dependency was desired for the prototype.
+- FR-9.2 (User History): Skipped for the prototype.
+
+## Deployment
+
+For a live demo, deploy the backend and frontend separately:
+
+**Backend (Render/Railway free tier):**
+1. Push to GitHub
+2. Create a new Web Service on Render
+3. Set build command: `pip install -r requirements.txt && python -m app.seed_data`
+4. Set start command: `python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+5. Set env vars: `ADMIN_TOKEN` (your secret), `CORS_ORIGINS` (your frontend URL)
+
+**Frontend (Vercel/Netlify):**
+1. Set build command: `npm run build`
+2. Set output directory: `dist`
+3. Add env var `VITE_API_URL` pointing to your backend URL
+
+**Docker (any VM):**
+```bash
+docker-compose up --build -d
+```
 
 ## License
 
