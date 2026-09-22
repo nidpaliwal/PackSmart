@@ -3,9 +3,12 @@ services:
     build: ./backend
     ports:
       - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:///./data/packsmart.db
+      - ADMIN_TOKEN=${ADMIN_TOKEN:-packsmart-admin-change-me}
+      - CORS_ORIGINS=http://localhost,http://localhost:80
     volumes:
-      - ./backend/data:/app/data
-      - db-data:/app
+      - db-data:/app/data
 
   frontend:
     build: ./frontend

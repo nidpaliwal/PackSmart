@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from app.database import get_db
+from app.auth import require_admin
 from app.models.packaging_material import PackagingMaterial
 from app.schemas.packaging_material import MaterialBase, MaterialRead
 
@@ -25,7 +26,7 @@ def get_material(material_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=MaterialRead)
-def create_material(data: MaterialBase, db: Session = Depends(get_db)):
+def create_material(data: MaterialBase, db: Session = Depends(get_db), _auth: bool = Depends(require_admin)):
     existing = db.query(PackagingMaterial).filter(PackagingMaterial.name == data.name).first()
     if existing:
         raise HTTPException(status_code=400, detail="Material already exists")
@@ -37,7 +38,7 @@ def create_material(data: MaterialBase, db: Session = Depends(get_db)):
 
 
 @router.put("/{material_id}", response_model=MaterialRead)
-def update_material(material_id: int, data: MaterialBase, db: Session = Depends(get_db)):
+def update_material(material_id: int, data: MaterialBase, db: Session = Depends(get_db), _auth: bool = Depends(require_admin)):
     material = db.query(PackagingMaterial).filter(PackagingMaterial.id == material_id).first()
     if not material:
         raise HTTPException(status_code=404, detail="Material not found")
@@ -49,7 +50,7 @@ def update_material(material_id: int, data: MaterialBase, db: Session = Depends(
 
 
 @router.delete("/{material_id}")
-def delete_material(material_id: int, db: Session = Depends(get_db)):
+def delete_material(material_id: int, db: Session = Depends(get_db), _auth: bool = Depends(require_admin)):
     material = db.query(PackagingMaterial).filter(PackagingMaterial.id == material_id).first()
     if not material:
         raise HTTPException(status_code=404, detail="Material not found")

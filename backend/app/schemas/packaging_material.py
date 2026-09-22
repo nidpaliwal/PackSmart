@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional
 
 
@@ -21,10 +21,9 @@ class MaterialBase(BaseModel):
     bio_based_pct: float = 0.0
     recycled_content_pct: float = 0.0
     notes: str = ""
+    source: str = ""
 
 
 class MaterialRead(MaterialBase):
+    model_config = ConfigDict(from_attributes=True)
     id: int
-
-    class Config:
-        from_attributes = True

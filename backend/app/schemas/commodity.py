@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional
 
 
@@ -16,10 +16,9 @@ class CommodityBase(BaseModel):
     critical_moisture_limit: Optional[float] = None
     base_shelf_life_days: Optional[int] = None
     notes: str = ""
+    source: str = ""
 
 
 class CommodityRead(CommodityBase):
+    model_config = ConfigDict(from_attributes=True)
     id: int
-
-    class Config:
-        from_attributes = True

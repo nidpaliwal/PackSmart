@@ -19,3 +19,4 @@ class Commodity(Base):
     critical_moisture_limit = Column(Float, nullable=True)
     base_shelf_life_days = Column(Integer, nullable=True)
     notes = Column(Text, default="")
+    source = Column(String(500), default="", doc="Literature or standards source for data values")

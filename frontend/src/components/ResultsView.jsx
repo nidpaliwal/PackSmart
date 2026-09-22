@@ -1,5 +1,6 @@
 import OptionCard from './OptionCard';
 import CompliancePanel from './CompliancePanel';
+import ComparisonTable from './ComparisonTable';
 import { useTranslation } from '../App';
 
 export default function ResultsView({ data, onReset }) {
@@ -26,6 +27,10 @@ export default function ResultsView({ data, onReset }) {
         {data.recommendations.map((rec) => (
           <OptionCard key={rec.material_id} rec={rec} />
         ))}
+      </div>
+
+      <div className="mb-8">
+        <ComparisonTable recommendations={data.recommendations} />
       </div>
 
       <CompliancePanel notes={data.compliance_notes} />

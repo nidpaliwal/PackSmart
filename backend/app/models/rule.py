@@ -13,3 +13,4 @@ class Rule(Base):
     message = Column(Text, nullable=False)
     regulation_citation = Column(String(300), nullable=False)
     severity = Column(String(20), default="warning")
+    source = Column(String(500), default="", doc="Source reference for this rule")

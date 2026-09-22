@@ -24,3 +24,4 @@ class PackagingMaterial(Base):
     bio_based_pct = Column(Float, default=0.0)
     recycled_content_pct = Column(Float, default=0.0)
     notes = Column(Text, default="")
+    source = Column(String(500), default="", doc="Literature or standards source for barrier values")

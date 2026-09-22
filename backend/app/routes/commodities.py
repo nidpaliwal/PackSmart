@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from app.database import get_db
+from app.auth import require_admin
 from app.models.commodity import Commodity
 from app.schemas.commodity import CommodityBase, CommodityRead
 
@@ -25,7 +26,7 @@ def get_commodity(commodity_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=CommodityRead)
-def create_commodity(data: CommodityBase, db: Session = Depends(get_db)):
+def create_commodity(data: CommodityBase, db: Session = Depends(get_db), _auth: bool = Depends(require_admin)):
     existing = db.query(Commodity).filter(Commodity.name == data.name).first()
     if existing:
         raise HTTPException(status_code=400, detail="Commodity already exists")
@@ -37,7 +38,7 @@ def create_commodity(data: CommodityBase, db: Session = Depends(get_db)):
 
 
 @router.put("/{commodity_id}", response_model=CommodityRead)
-def update_commodity(commodity_id: int, data: CommodityBase, db: Session = Depends(get_db)):
+def update_commodity(commodity_id: int, data: CommodityBase, db: Session = Depends(get_db), _auth: bool = Depends(require_admin)):
     commodity = db.query(Commodity).filter(Commodity.id == commodity_id).first()
     if not commodity:
         raise HTTPException(status_code=404, detail="Commodity not found")
@@ -49,7 +50,7 @@ def update_commodity(commodity_id: int, data: CommodityBase, db: Session = Depen
 
 
 @router.delete("/{commodity_id}")
-def delete_commodity(commodity_id: int, db: Session = Depends(get_db)):
+def delete_commodity(commodity_id: int, db: Session = Depends(get_db), _auth: bool = Depends(require_admin)):
     commodity = db.query(Commodity).filter(Commodity.id == commodity_id).first()
     if not commodity:
         raise HTTPException(status_code=404, detail="Commodity not found")
